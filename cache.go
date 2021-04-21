@@ -22,6 +22,7 @@ type IKeyCache interface {
 	Count() int
 	Get(item IItem) error
 	Set(item IItem) error
+	Del(item IItem)
 }
 
 type KeyCache struct {
@@ -90,6 +91,15 @@ func (cache *KeyCache) Set(item IItem) error {
 	}
 
 	return err
+}
+
+func (cache *KeyCache) Del(item IItem) {
+	cache.Lock()
+	defer cache.Unlock()
+
+	if _, find := cache.data[item.ID()]; find {
+		delete(cache.data, item.ID())
+	}
 }
 
 func (cache *KeyCache) Get(item IItem) error {
