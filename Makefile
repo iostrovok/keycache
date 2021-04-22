@@ -27,11 +27,17 @@ deps:
 	#$(ENV) go install  github.com/golang/mock/mockgen@latest
 	#$(ENV) go install  github.com/golang/mock@latest
 
-# test http server
 test:
 	@echo "======================================================================"
 	@echo "Run 'test' for $(PWD)"
 	$(SOURCE_PATH) $(GODEBUG) go test -cover -v --check.format=teamcity --check.name=serverhttp. ./...
+
+test-bench:
+	@echo "======================================================================"
+	@echo "Run 'test' for $(PWD)"
+	$(SOURCE_PATH) $(GODEBUG) go test -bench ./...
+
+
 
 mod:
 	@echo "======================================================================"

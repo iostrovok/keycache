@@ -2,9 +2,10 @@ package keycache
 
 import (
 	"fmt"
-	. "github.com/iostrovok/check"
 	"sync"
 	"testing"
+
+	. "github.com/iostrovok/check"
 )
 
 type testSuite struct{}
@@ -124,4 +125,40 @@ func (s *testSuite) TestSize(c *C) {
 	}
 
 	c.Assert(found > maxSize/2 && found <= maxSize, Equals, true)
+}
+
+func insert(maxSize, subCount, itemTotal int) {
+
+	// cache with max size
+	kc := New(maxSize)
+
+	wg := sync.WaitGroup{}
+	count := subCount
+	for count > 0 {
+		wg.Add(1)
+		count--
+		go func() {
+			defer wg.Done()
+			for i := 1; i < itemTotal; i++ {
+				data := &Data{
+					MyLongData1: fmt.Sprintf("data-%d", i),
+				}
+				kc.Set(&MyTestItem{
+					id:   i,
+					Data: data,
+					md5:  GetMD5(data),
+				})
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
+func Benchmark1(b *testing.B) {
+	insert(10_000, 10, 1000_000)
+}
+
+func Benchmark2(b *testing.B) {
+	insert(10_000, 100, 1000_000)
 }
