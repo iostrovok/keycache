@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"sync"
+	"sync/atomic"
 )
 
 type IItem interface {
@@ -23,20 +24,32 @@ type IKeyCache interface {
 	Get(item IItem) error
 	Set(item IItem) error
 	Del(item IItem)
+	Exists(item IItem) bool
 }
 
 type KeyCache struct {
 	sync.RWMutex
-	data map[int][]byte
+	data    map[int][]byte
+	maxSize int
+	counter *int32
+	checker []int
 }
 
-func New() IKeyCache {
-	return &KeyCache{
+func New(maxSize ...int) IKeyCache {
+	out := &KeyCache{
 		data: map[int][]byte{},
 	}
+
+	if len(maxSize) > 0 && maxSize[0] > 1 {
+		out.checker = make([]int, maxSize[0], maxSize[0])
+		out.counter = new(int32)
+		out.maxSize = maxSize[0]
+	}
+
+	return out
 }
 
-func CheckMD5(b, sign []byte) bool {
+func CheckSign(b, sign []byte) bool {
 	signLength := int(b[0])
 	if len(sign) != signLength {
 		return false
@@ -82,23 +95,46 @@ func (cache *KeyCache) Count() int {
 	return len(cache.data)
 }
 
+func (cache *KeyCache) replace(id int) {
+	next := int(atomic.AddInt32(cache.counter, 1)) % cache.maxSize
+
+	cache.Lock()
+	delId := cache.checker[next]
+	cache.checker[next] = id
+	if _, find := cache.data[delId]; find {
+		delete(cache.data, delId)
+	}
+	cache.Unlock()
+}
+
 func (cache *KeyCache) Set(item IItem) error {
+	if cache.Exists(item) {
+		return nil
+	}
+
 	b, err := Encode(item)
 	if err == nil {
 		cache.Lock()
 		cache.data[item.ID()] = b
 		cache.Unlock()
+		if cache.maxSize > 2 {
+			go cache.replace(item.ID())
+		}
 	}
 
 	return err
 }
 
 func (cache *KeyCache) Del(item IItem) {
+	cache.del(item.ID())
+}
+
+func (cache *KeyCache) del(id int) {
 	cache.Lock()
 	defer cache.Unlock()
 
-	if _, find := cache.data[item.ID()]; find {
-		delete(cache.data, item.ID())
+	if _, find := cache.data[id]; find {
+		delete(cache.data, id)
 	}
 }
 
@@ -111,7 +147,7 @@ func (cache *KeyCache) Get(item IItem) error {
 		return nil
 	}
 
-	if !CheckMD5(data, item.Sign()) {
+	if !CheckSign(data, item.Sign()) {
 		return nil
 	}
 
@@ -120,4 +156,12 @@ func (cache *KeyCache) Get(item IItem) error {
 	}
 
 	return item.Decode(data[int(data[0])+1:])
+}
+
+func (cache *KeyCache) Exists(item IItem) bool {
+	cache.RLock()
+	data, find := cache.data[item.ID()]
+	cache.RUnlock()
+
+	return find && CheckSign(data, item.Sign())
 }

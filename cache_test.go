@@ -2,9 +2,9 @@ package keycache
 
 import (
 	"fmt"
-	"testing"
-
 	. "github.com/iostrovok/check"
+	"sync"
+	"testing"
 )
 
 type testSuite struct{}
@@ -73,4 +73,55 @@ func (s *testSuite) TestEncodeMulti(c *C) {
 		c.Assert(t2.Find, Equals, true)
 		c.Assert(t2.Data.MyLongData1, DeepEquals, fmt.Sprintf("data-%d", i))
 	}
+}
+
+func (s *testSuite) TestSize(c *C) {
+
+	maxSize := 1000
+
+	// cache with max size
+	kc := New(maxSize)
+
+	wg := sync.WaitGroup{}
+	count := 2
+	for count > 0 {
+		wg.Add(1)
+		count--
+		go func() {
+			defer wg.Done()
+			for i := 1; i < 100000; i++ {
+				data := &Data{
+					MyLongData1: fmt.Sprintf("data-%d", i),
+				}
+				t := &MyTestItem{
+					id:   i,
+					Data: data,
+					md5:  GetMD5(data),
+				}
+
+				c.Assert(kc.Set(t), IsNil)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	found := 0
+	for i := 1; i < 100000; i++ {
+		data := &Data{
+			MyLongData1: fmt.Sprintf("data-%d", i),
+		}
+		t2 := &MyTestItem{
+			id:  i,
+			md5: GetMD5(data),
+		}
+
+		c.Assert(kc.Get(t2), IsNil)
+		if t2.Find {
+			found++
+			c.Assert(t2.Data.MyLongData1, Equals, fmt.Sprintf("data-%d", i))
+		}
+	}
+
+	c.Assert(found > maxSize/2 && found <= maxSize, Equals, true)
 }
