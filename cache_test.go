@@ -20,7 +20,7 @@ func (s *testSuite) TestSyntax(c *C) {
 
 func (s *testSuite) TestEncode1(c *C) {
 
-	id := 12345432
+	key := "12345432"
 	data := &Data{
 		MyLongData1: "asdasdadasdad-1",
 		MyLongData2: "asdasdadasdad-2",
@@ -28,7 +28,7 @@ func (s *testSuite) TestEncode1(c *C) {
 	md5 := GetMD5(data)
 
 	t := &MyTestItem{
-		id:   id,
+		key:  key,
 		Data: data,
 		md5:  md5,
 	}
@@ -37,7 +37,7 @@ func (s *testSuite) TestEncode1(c *C) {
 	c.Assert(kc.Set(t), IsNil)
 
 	t2 := &MyTestItem{
-		id:  id,
+		key: key,
 		md5: md5,
 	}
 
@@ -57,7 +57,7 @@ func (s *testSuite) TestEncodeMulti(c *C) {
 	for i := 1; i < 1000; i++ {
 		data.MyLongData1 = fmt.Sprintf("data-%d", i)
 		t := &MyTestItem{
-			id:   i,
+			key:  fmt.Sprintf("%d", i),
 			Data: data,
 			md5:  md5,
 		}
@@ -66,7 +66,7 @@ func (s *testSuite) TestEncodeMulti(c *C) {
 
 	for i := 1; i < 1000; i++ {
 		t2 := &MyTestItem{
-			id:  i,
+			key: fmt.Sprintf("%d", i),
 			md5: md5,
 		}
 
@@ -95,7 +95,7 @@ func (s *testSuite) TestSize(c *C) {
 					MyLongData1: fmt.Sprintf("data-%d", i),
 				}
 				t := &MyTestItem{
-					id:   i,
+					key:  fmt.Sprintf("%d", i),
 					Data: data,
 					md5:  GetMD5(data),
 				}
@@ -113,7 +113,7 @@ func (s *testSuite) TestSize(c *C) {
 			MyLongData1: fmt.Sprintf("data-%d", i),
 		}
 		t2 := &MyTestItem{
-			id:  i,
+			key: fmt.Sprintf("%d", i),
 			md5: GetMD5(data),
 		}
 
@@ -144,7 +144,7 @@ func insert(maxSize, subCount, itemTotal int) {
 					MyLongData1: fmt.Sprintf("data-%d", i),
 				}
 				kc.Set(&MyTestItem{
-					id:   i,
+					key:  fmt.Sprintf("%d", i),
 					Data: data,
 					md5:  GetMD5(data),
 				})

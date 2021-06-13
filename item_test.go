@@ -15,14 +15,14 @@ type Data struct {
 }
 
 type MyTestItem struct {
-	id   int
+	key  string
 	md5  []byte
 	Data *Data
 	Find bool
 }
 
-func (it *MyTestItem) ID() int {
-	return it.id
+func (it *MyTestItem) Key() string {
+	return it.key
 }
 
 func GetMD5(it interface{}) []byte {

@@ -12,7 +12,7 @@ import (
 )
 
 type IItem interface {
-	ID() int
+	Key() string
 	Sign() []byte
 
 	Decode([]byte) error
@@ -29,19 +29,19 @@ type IKeyCache interface {
 
 type KeyCache struct {
 	sync.RWMutex
-	data    map[int][]byte
+	data    map[string][]byte
 	maxSize int
 	counter *int32
-	checker []int
+	checker []string
 }
 
 func New(maxSize ...int) IKeyCache {
 	out := &KeyCache{
-		data: map[int][]byte{},
+		data: map[string][]byte{},
 	}
 
 	if len(maxSize) > 0 && maxSize[0] > 1 {
-		out.checker = make([]int, maxSize[0], maxSize[0])
+		out.checker = make([]string, maxSize[0], maxSize[0])
 		out.counter = new(int32)
 		out.maxSize = maxSize[0]
 	}
@@ -95,7 +95,7 @@ func (cache *KeyCache) Count() int {
 	return len(cache.data)
 }
 
-func (cache *KeyCache) replace(id int) {
+func (cache *KeyCache) replace(id string) {
 	next := int(atomic.AddInt32(cache.counter, 1)) % cache.maxSize
 
 	cache.Lock()
@@ -115,10 +115,10 @@ func (cache *KeyCache) Set(item IItem) error {
 	b, err := Encode(item)
 	if err == nil {
 		cache.Lock()
-		cache.data[item.ID()] = b
+		cache.data[item.Key()] = b
 		cache.Unlock()
 		if cache.maxSize > 2 {
-			go cache.replace(item.ID())
+			go cache.replace(item.Key())
 		}
 	}
 
@@ -126,10 +126,10 @@ func (cache *KeyCache) Set(item IItem) error {
 }
 
 func (cache *KeyCache) Del(item IItem) {
-	cache.del(item.ID())
+	cache.del(item.Key())
 }
 
-func (cache *KeyCache) del(id int) {
+func (cache *KeyCache) del(id string) {
 	cache.Lock()
 	defer cache.Unlock()
 
@@ -140,7 +140,7 @@ func (cache *KeyCache) del(id int) {
 
 func (cache *KeyCache) Get(item IItem) error {
 	cache.RLock()
-	data, find := cache.data[item.ID()]
+	data, find := cache.data[item.Key()]
 	cache.RUnlock()
 
 	if !find {
@@ -160,7 +160,7 @@ func (cache *KeyCache) Get(item IItem) error {
 
 func (cache *KeyCache) Exists(item IItem) bool {
 	cache.RLock()
-	data, find := cache.data[item.ID()]
+	data, find := cache.data[item.Key()]
 	cache.RUnlock()
 
 	return find && CheckSign(data, item.Sign())
